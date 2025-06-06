@@ -1,0 +1,8 @@
+jupyterlab
+pandas
+numpy
+matplotlib
+gym
+torch
+stable-baselines3[extra]
+python-binance

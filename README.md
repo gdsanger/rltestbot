@@ -7,6 +7,7 @@ Ein experimentelles Projekt zum Trainieren eines Reinforcement-Learning-Agenten 
 - PPO-Agent mit `stable-baselines3`
 - Training & Evaluation direkt im Jupyter Notebook
 - Live-Marktdaten abrufbar
+- Custom Gym-Environment `BinanceTradingEnv` für Echtzeitdaten
 
 ## Voraussetzungen
 
@@ -21,6 +22,14 @@ jupyter lab
 ```
 
 Dann öffne `CryptoRL_Starter_with_Agent.ipynb` und folge den Schritten.
+### Nutzung des Environments
+
+```python
+from binance_env import BinanceTradingEnv
+env = BinanceTradingEnv()
+obs = env.reset()
+```
+
 
 ## Haftungsausschluss
 

@@ -16,6 +16,18 @@ Ein experimentelles Projekt zum Trainieren eines Reinforcement-Learning-Agenten 
 pip install -r requirements.txt
 ```
 
+Zusätzlich wird das MEXC SDK benötigt, das aktuell nicht als
+PyPI-Paket verfügbar ist. Klone das GitHub-Repository und installiere
+das Paket lokal:
+
+```bash
+git clone https://github.com/MEXCofficial/mexc-api-sdk.git
+pip install -e mexc-api-sdk/dist/python
+```
+
+Alternativ kannst du den Pfad `mexc-api-sdk/dist/python` über die
+Umgebungsvariable `PYTHONPATH` einbinden.
+
 ## Start
 
 ```bash

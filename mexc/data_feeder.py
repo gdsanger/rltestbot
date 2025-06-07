@@ -1,8 +1,18 @@
 import os
+import sys
 from typing import List
 
 import numpy as np
 import pandas as pd
+
+MEXC_SDK_PATH = os.environ.get("MEXC_SDK_PATH")
+if MEXC_SDK_PATH and os.path.exists(MEXC_SDK_PATH):
+    sys.path.insert(0, MEXC_SDK_PATH)
+else:
+    default_sdk = os.path.join(os.path.dirname(os.path.dirname(__file__)), "mexc-api-sdk", "dist", "python")
+    if os.path.exists(default_sdk):
+        sys.path.insert(0, default_sdk)
+
 from mexc_sdk import Spot
 from dotenv import load_dotenv, find_dotenv
 

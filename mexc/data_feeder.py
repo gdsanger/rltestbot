@@ -2,6 +2,8 @@ import os
 import sys
 from typing import List
 
+import json
+
 import numpy as np
 import pandas as pd
 
@@ -54,10 +56,22 @@ def fetch_recent_candles(
     try:
         key, secret = _load_api_credentials()
         client = Spot(key, secret)
+        use_auth = True
     except EnvironmentError:
         client = Spot()
-    options = {"limit": limit} if limit is not None else None
-    klines = client.klines(symbol, interval, options)
+        use_auth = False
+
+    params = {"symbol": symbol.upper(), "interval": interval}
+    if limit is not None:
+        params["limit"] = limit
+
+    if use_auth:
+        # For authenticated requests we must explicitly sign the
+        # query, otherwise the server returns an error.
+        res = client.sign_request("GET", "/klines", params)
+        klines = json.loads(res.getBody())
+    else:
+        klines = client.klines(symbol, interval, {"limit": limit})
 
     data: List[List[float]] = [
         [float(k[1]), float(k[2]), float(k[3]), float(k[4]), float(k[5])]

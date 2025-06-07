@@ -34,12 +34,16 @@ obs = env.reset()
 ### Training eines PPO-Agenten
 
 Neben dem Notebook kann ein Agent auch per Skript trainiert werden. Das Skript
-`train_agent.py` verwendet das vereinfachte `CryptoEnv` und speichert nach
-100.000 Schritten das Modell.
+`train_agent.py` verwendet das vereinfachte `CryptoEnv`, welches nun echte
+OHLCV-Daten vom Binance-Testnet nutzt, und speichert nach 100.000 Schritten das
+Modell.
 
 ```bash
 python train_agent.py
 ```
+
+Vor dem Start sollten die Umgebungsvariablen `BINANCE_API_KEY` und
+`BINANCE_API_SECRET` mit den Zugangsdaten des Testnet-Accounts gesetzt sein.
 
 
 ## Haftungsausschluss

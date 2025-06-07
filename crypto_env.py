@@ -8,10 +8,11 @@ class CryptoEnv(gym.Env):
 
     metadata = {"render.modes": ["human"]}
 
-    def __init__(self, window_size: int = 60, max_steps: int = 1000):
+    def __init__(self, window_size: int = 60, max_steps: int = 1000, data=None):
         super().__init__()
         self.window_size = window_size
-        self.max_steps = max_steps
+        self.external_data = data
+        self.max_steps = max_steps if data is None else len(data) - window_size - 1
         self.observation_space = spaces.Box(
             low=-np.inf,
             high=np.inf,
@@ -40,7 +41,10 @@ class CryptoEnv(gym.Env):
         return data
 
     def reset(self):
-        self.data = self._generate_data()
+        if self.external_data is not None:
+            self.data = self.external_data
+        else:
+            self.data = self._generate_data()
         self.current_step = self.window_size
         self.position = 0
         self.entry_price = 0.0

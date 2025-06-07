@@ -4,21 +4,23 @@ from typing import List
 import numpy as np
 import pandas as pd
 from mexc_sdk import Spot
-import yaml
+from dotenv import load_dotenv, find_dotenv
 
 
 SETTINGS_PATH = os.path.join(os.path.dirname(__file__), "config", "settings.yml")
 
+# Load environment variables from a .env file if present
+load_dotenv(find_dotenv())
+
 
 def _load_api_credentials():
-    """Load API key/secret from env vars or settings file."""
+    """Load API key and secret from environment variables."""
     key = os.environ.get("MEXC_API_KEY") or os.environ.get("MEXC_KEY")
     secret = os.environ.get("MEXC_API_SECRET") or os.environ.get("MEXC_SECRET")
-    if (not key or not secret) and os.path.exists(SETTINGS_PATH):
-        with open(SETTINGS_PATH, "r") as f:
-            settings = yaml.safe_load(f) or {}
-        key = key or settings.get("api_key")
-        secret = secret or settings.get("api_secret")
+    if not key or not secret:
+        raise EnvironmentError(
+            "MEXC_API_KEY and MEXC_API_SECRET must be set as environment variables"
+        )
     return key, secret
 
 

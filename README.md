@@ -46,6 +46,11 @@ python train_agent.py
 Vor dem Start sollten die Umgebungsvariablen `BINANCE_API_KEY` und
 `BINANCE_API_SECRET` mit den Zugangsdaten des Testnet-Accounts gesetzt sein.
 
+Für die MEXC-Integration werden die Schlüssel ebenfalls über Umgebungsvariablen
+geladen. Lege dazu eine `.env`-Datei im Projektverzeichnis mit
+`MEXC_API_KEY` und `MEXC_API_SECRET` an. Die Module laden diese Werte beim
+Start automatisch.
+
 
 
 ## Equity-Kurve berechnen

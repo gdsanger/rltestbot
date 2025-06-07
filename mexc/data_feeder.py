@@ -9,7 +9,9 @@ MEXC_SDK_PATH = os.environ.get("MEXC_SDK_PATH")
 if MEXC_SDK_PATH and os.path.exists(MEXC_SDK_PATH):
     sys.path.insert(0, MEXC_SDK_PATH)
 else:
-    default_sdk = os.path.join(os.path.dirname(os.path.dirname(__file__)), "mexc-api-sdk", "dist", "python")
+    default_sdk = os.path.join(
+        os.path.dirname(os.path.dirname(__file__)), "mexc-api-sdk", "dist", "python"
+    )
     if os.path.exists(default_sdk):
         sys.path.insert(0, default_sdk)
     else:
@@ -46,14 +48,20 @@ def fetch_recent_candles(
 ):
     """Fetch recent OHLCV candles from MEXC."""
 
-    # ``klines`` is a public endpoint and fails if authentication
-    # headers are sent.  Use an unauthenticated client here.
-    client = Spot()
+    # Recent changes to the MEXC API require authentication even for
+    # public market data endpoints like ``klines``.  Load credentials if
+    # available and fall back to an unauthenticated client otherwise.
+    try:
+        key, secret = _load_api_credentials()
+        client = Spot(key, secret)
+    except EnvironmentError:
+        client = Spot()
     options = {"limit": limit} if limit is not None else None
     klines = client.klines(symbol, interval, options)
 
     data: List[List[float]] = [
-        [float(k[1]), float(k[2]), float(k[3]), float(k[4]), float(k[5])] for k in klines
+        [float(k[1]), float(k[2]), float(k[3]), float(k[4]), float(k[5])]
+        for k in klines
     ]
 
     if return_df:

@@ -11,6 +11,7 @@ def fetch_recent_candles(
     limit: int = 500,
     interval: str = Client.KLINE_INTERVAL_1MINUTE,
     return_df: bool = True,
+    testnet: bool = False,
 ):
     """Fetch recent candles for a trading pair from Binance.
 
@@ -25,6 +26,8 @@ def fetch_recent_candles(
     return_df : bool
         If ``True``, return a :class:`pandas.DataFrame`; otherwise return a
         :class:`numpy.ndarray`.
+    testnet : bool
+        Whether to use the Binance Spot Testnet.
 
     Returns
     -------
@@ -34,7 +37,15 @@ def fetch_recent_candles(
 
     api_key = os.environ.get("BINANCE_API_KEY")
     api_secret = os.environ.get("BINANCE_API_SECRET")
-    client = Client(api_key, api_secret)
+
+    if testnet:
+        try:
+            client = Client(api_key, api_secret, testnet=True)
+        except TypeError:
+            client = Client(api_key, api_secret)
+            client.API_URL = "https://testnet.binance.vision/api"
+    else:
+        client = Client(api_key, api_secret)
 
     klines = client.get_klines(symbol=symbol, interval=interval, limit=limit)
     data: List[List[float]] = [

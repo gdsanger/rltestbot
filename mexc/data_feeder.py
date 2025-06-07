@@ -56,22 +56,19 @@ def fetch_recent_candles(
     try:
         key, secret = _load_api_credentials()
         client = Spot(key, secret)
-        use_auth = True
     except EnvironmentError:
         client = Spot()
-        use_auth = False
 
     params = {"symbol": symbol.upper(), "interval": interval}
     if limit is not None:
         params["limit"] = limit
 
-    if use_auth:
-        # For authenticated requests we must explicitly sign the
-        # query, otherwise the server returns an error.
-        res = client.sign_request("GET", "/klines", params)
-        klines = json.loads(res.getBody())
-    else:
-        klines = client.klines(symbol, interval, {"limit": limit})
+    # The JSII-based Python bindings for the MEXC SDK return an opaque
+    # object when calling ``sign_request`` directly, which exposes a
+    # ``getBody`` method only on the JavaScript side.  This caused an
+    # ``AttributeError`` at runtime.  Using the higher level ``klines``
+    # method avoids the issue and still returns the parsed data.
+    klines = client.klines(symbol, interval, {"limit": limit})
 
     data: List[List[float]] = [
         [float(k[1]), float(k[2]), float(k[3]), float(k[4]), float(k[5])]

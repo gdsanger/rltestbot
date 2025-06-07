@@ -6,3 +6,5 @@ gym
 torch
 stable-baselines3[extra]
 python-binance
+mexc-api-sdk
+pyyaml

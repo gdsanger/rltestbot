@@ -1,13 +1,9 @@
-api_key: "YOUR_MEXC_API_KEY"
-api_secret: "YOUR_MEXC_API_SECRET"
-
 symbols:
-  - BTCUSDT
-  - ETHUSDT
+  - XRP/USDT 
 
 train:
   window_size: 60
-  total_timesteps: 100000
+  total_timesteps: 50000
 
 live_trading:
   take_profit: 0.05  # 5% gain

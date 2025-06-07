@@ -47,20 +47,21 @@ def get_account_info() -> dict:
     return response.json()
 
 
-def fetch_klines(symbol: str, interval: str = "1m", limit: int = 1000) -> list:
-    """Hole historische Candle-Daten"""
-    path = "/api/v3/klines"
-    timestamp = int(time.time() * 1000)
+def fetch_klines(symbol: str, interval: str = "1m", limit: int = 1000):
+    url = "https://api.mexc.com/api/v3/klines"
     params = {
         "symbol": symbol,
         "interval": interval,
-        "limit": limit,
-        "timestamp": timestamp
+        "limit": limit
     }
-    signed_params = _sign_params(params)
-    response = requests.get(f"{BASE_URL}{path}", headers=HEADERS, params=signed_params)
+
+    response = requests.get(url, params=params)
     response.raise_for_status()
-    return response.json()
+    data = response.json()
+
+    # Format: [open_time, open, high, low, close, volume, ...]
+    ohlcv = [[float(c[1]), float(c[2]), float(c[3]), float(c[4]), float(c[5])] for c in data]
+    return ohlcv
 
 
 # --- Test ---

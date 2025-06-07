@@ -4,7 +4,7 @@ from gym import spaces
 from datetime import datetime
 import pandas as pd
 
-from .data_feeder import fetch_recent_candles
+from .data_feeder import fetch_klines
 
 
 class MexcEnv(gym.Env):
@@ -36,8 +36,8 @@ class MexcEnv(gym.Env):
 
     def _generate_data(self):
         limit = self.max_steps + self.window_size
-        data = fetch_recent_candles(symbol=self.symbol, limit=limit, interval="1m", return_df=False)
-        return data.tolist()
+        data = fetch_klines(symbol=self.symbol, limit=limit, interval="1m")
+        return data  # ✅ richtig
 
     def reset(self):
         if self.external_data is not None:

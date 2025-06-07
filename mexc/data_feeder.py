@@ -46,9 +46,9 @@ def fetch_recent_candles(
 ):
     """Fetch recent OHLCV candles from MEXC."""
 
-    api_key, api_secret = _load_api_credentials()
-
-    client = Spot(api_key, api_secret)
+    # ``klines`` is a public endpoint and fails if authentication
+    # headers are sent.  Use an unauthenticated client here.
+    client = Spot()
     options = {"limit": limit} if limit is not None else None
     klines = client.klines(symbol, interval, options)
 

@@ -22,12 +22,23 @@ jupyter lab
 ```
 
 Dann öffne `CryptoRL_Starter_with_Agent.ipynb` und folge den Schritten.
+
 ### Nutzung des Environments
 
 ```python
 from binance_env import BinanceTradingEnv
 env = BinanceTradingEnv()
 obs = env.reset()
+```
+
+### Training eines PPO-Agenten
+
+Neben dem Notebook kann ein Agent auch per Skript trainiert werden. Das Skript
+`train_agent.py` verwendet das vereinfachte `CryptoEnv` und speichert nach
+100.000 Schritten das Modell.
+
+```bash
+python train_agent.py
 ```
 
 

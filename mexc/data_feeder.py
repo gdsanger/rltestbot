@@ -12,6 +12,10 @@ else:
     default_sdk = os.path.join(os.path.dirname(os.path.dirname(__file__)), "mexc-api-sdk", "dist", "python")
     if os.path.exists(default_sdk):
         sys.path.insert(0, default_sdk)
+    else:
+        local_sdk = os.path.join(os.path.dirname(__file__), "mexc_sdk", "src")
+        if os.path.exists(local_sdk):
+            sys.path.insert(0, local_sdk)
 
 from mexc_sdk import Spot
 from dotenv import load_dotenv, find_dotenv

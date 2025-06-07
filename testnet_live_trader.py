@@ -45,13 +45,25 @@ def main():
 
     while True:
         action, _ = model.predict(obs, deterministic=True)
-        obs, reward, done, info = env.step(action)
+        obs, _, done, info = env.step(action)
 
         price = env.data[-1][3]
-        log_trade(action, price, info["position"], info["unrealized_profit"])
+        position = info.get("position", env.position)
+        unrealized = info.get("unrealized_profit", env.unrealized_profit)
 
-        print(f"[{datetime.utcnow().strftime('%H:%M:%S')}] Action: {action} | "
-              f"Price: {price:.2f} | Position: {info['position']} | P/L: {info['unrealized_profit']:.2f}")
+        log_trade(action, price, position, unrealized)
+
+        print(
+            f"[{datetime.utcnow().strftime('%H:%M:%S')}] Action: {action} | "
+            f"Price: {price:.2f} | Position: {position} | P/L: {unrealized:.2f}"
+        )
+
+        if done:
+            new_data = fetch_recent_candles(
+                limit=WINDOW_SIZE, return_df=False, testnet=True
+            )
+            env = CryptoEnv(window_size=WINDOW_SIZE, data=new_data, log_enabled=False)
+            obs = env.reset()
 
         time.sleep(SLEEP_SECONDS)
 

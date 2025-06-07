@@ -3,6 +3,8 @@ import gym
 from gym import spaces
 from binance.client import Client
 from data_fetcher import fetch_recent_candles
+from datetime import datetime
+import pandas as pd
 
 
 class CryptoEnv(gym.Env):
@@ -10,11 +12,13 @@ class CryptoEnv(gym.Env):
 
     metadata = {"render.modes": ["human"]}
 
-    def __init__(self, window_size: int = 60, max_steps: int = 1000, data=None):
+    def __init__(self, window_size: int = 60, max_steps: int = 1000, data=None, log_enabled: bool = False):
         super().__init__()
         self.window_size = window_size
         self.external_data = data
         self.max_steps = max_steps if data is None else len(data) - window_size - 1
+        self.log_enabled = log_enabled
+        self.trade_log = []
 
         self.observation_space = spaces.Box(
             low=-np.inf,
@@ -50,6 +54,8 @@ class CryptoEnv(gym.Env):
         self.position = 0
         self.entry_price = 0.0
         self.unrealized_profit = 0.0
+        if self.log_enabled:
+            self.trade_log = []
         return np.array(
             self.data[self.current_step - self.window_size : self.current_step],
             dtype=np.float32,
@@ -68,13 +74,18 @@ class CryptoEnv(gym.Env):
         candle = self.data[self.current_step]
         price = candle[3]  # closing price
         prev_unrealized = self.unrealized_profit
+        realized_pnl = 0.0
 
         if action == 1:  # Buy
             if self.position != 1:
+                if self.position == -1:
+                    realized_pnl = self.entry_price - price
                 self.position = 1
                 self.entry_price = price
         elif action == 2:  # Sell
             if self.position != -1:
+                if self.position == 1:
+                    realized_pnl = price - self.entry_price
                 self.position = -1
                 self.entry_price = price
 
@@ -86,6 +97,19 @@ class CryptoEnv(gym.Env):
             self.unrealized_profit = 0.0
 
         reward = self.unrealized_profit - prev_unrealized
+
+        if self.log_enabled:
+            self.trade_log.append(
+                {
+                    "step": self.current_step,
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "action": action,
+                    "price": price,
+                    "position": self.position,
+                    "realized_pnl": realized_pnl,
+                }
+            )
+
         self.current_step += 1
         obs = np.array(
             self.data[self.current_step - self.window_size : self.current_step],
@@ -104,3 +128,7 @@ class CryptoEnv(gym.Env):
 
     def close(self):
         pass
+
+    def save_trade_log(self, path: str = "trading_log.csv"):
+        if self.log_enabled and self.trade_log:
+            pd.DataFrame(self.trade_log).to_csv(path, index=False)

@@ -11,7 +11,7 @@ def train_and_test(total_timesteps: int = 10000, window_size: int = 60):
     data = fetch_recent_candles(limit=1000, return_df=False)
 
     # Create environment with real data
-    env = DummyVecEnv([lambda: CryptoEnv(window_size=window_size, data=data)])
+    env = DummyVecEnv([lambda: CryptoEnv(window_size=window_size, data=data, log_enabled=True)])
 
     # Train PPO agent
     model = PPO("MlpPolicy", env, verbose=1)
@@ -36,6 +36,7 @@ def train_and_test(total_timesteps: int = 10000, window_size: int = 60):
     plt.tight_layout()
     plt.savefig("equity_curve.png")
     plt.show()
+    env.envs[0].save_trade_log()
 
 
 if __name__ == "__main__":

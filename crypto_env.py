@@ -1,10 +1,12 @@
 import numpy as np
 import gym
 from gym import spaces
+from binance.client import Client
+from data_fetcher import fetch_recent_candles
 
 
 class CryptoEnv(gym.Env):
-    """Simple cryptocurrency trading environment with synthetic data."""
+    """Trading environment using OHLCV data from the Binance Spot Testnet."""
 
     metadata = {"render.modes": ["human"]}
 
@@ -13,6 +15,7 @@ class CryptoEnv(gym.Env):
         self.window_size = window_size
         self.external_data = data
         self.max_steps = max_steps if data is None else len(data) - window_size - 1
+
         self.observation_space = spaces.Box(
             low=-np.inf,
             high=np.inf,
@@ -27,18 +30,16 @@ class CryptoEnv(gym.Env):
         self.unrealized_profit = None
 
     def _generate_data(self):
-        price = 100.0
-        data = []
-        for _ in range(self.max_steps + self.window_size):
-            change = np.random.randn() * 0.5
-            open_p = price
-            close = price + change
-            high = max(open_p, close) + abs(np.random.randn())
-            low = min(open_p, close) - abs(np.random.randn())
-            volume = np.random.rand() * 100
-            data.append([open_p, high, low, close, volume])
-            price = close
-        return data
+        """Fetch historical candles from Binance testnet."""
+        limit = self.max_steps + self.window_size
+        data = fetch_recent_candles(
+            symbol=self.symbol,
+            limit=limit,
+            interval=Client.KLINE_INTERVAL_1MINUTE,
+            return_df=False,
+            testnet=self.testnet,
+        )
+        return data.tolist()
 
     def reset(self):
         if self.external_data is not None:

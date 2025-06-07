@@ -47,6 +47,28 @@ Vor dem Start sollten die Umgebungsvariablen `BINANCE_API_KEY` und
 `BINANCE_API_SECRET` mit den Zugangsdaten des Testnet-Accounts gesetzt sein.
 
 
+
+## Equity-Kurve berechnen
+
+Das Modul `equity_curve.py` bietet die Funktion `calculate_equity_curve`, um eine
+Portfolio-Kurve aus dem gespeicherten `trading_log.csv` zu erzeugen. Dabei wird
+folgende Formel verwendet:
+
+```
+Equity = Startkapital + realisierte Gewinne + (offene Position × aktueller Preis - Einstiegspreis)
+```
+
+Beispiel:
+
+```python
+from equity_curve import calculate_equity_curve
+curve = calculate_equity_curve("trading_log.csv")
+curve.plot()
+```
+
+Die Close-Preise werden automatisch über `fetch_recent_candles` von Binance
+abgerufen. Alternativ können eigene Preisdaten übergeben werden.
+
 ## Haftungsausschluss
 
 **Dies ist kein Finanzrat. Nur zu Forschungs- und Lernzwecken.**

@@ -69,6 +69,18 @@ curve.plot()
 Die Close-Preise werden automatisch über `fetch_recent_candles` von Binance
 abgerufen. Alternativ können eigene Preisdaten übergeben werden.
 
+### Buy&Hold Benchmark
+
+Um die Agent-Performance einordnen zu können, bietet `equity_curve.py` die
+Funktion `compare_with_buy_and_hold`. Dabei wird zu Beginn das gesamte
+Startkapital in BTC investiert und der Kursverlauf als Benchmark verfolgt.
+
+```python
+from equity_curve import compare_with_buy_and_hold
+fig = compare_with_buy_and_hold("trading_log.csv", return_plot=True)
+fig.show()
+```
+
 ## Haftungsausschluss
 
 **Dies ist kein Finanzrat. Nur zu Forschungs- und Lernzwecken.**

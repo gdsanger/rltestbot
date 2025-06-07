@@ -3,6 +3,7 @@ api_secret: "YOUR_MEXC_API_SECRET"
 
 symbols:
   - BTCUSDT
+  - ETHUSDT
 
 train:
   window_size: 60

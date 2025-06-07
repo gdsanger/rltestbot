@@ -8,6 +8,7 @@ Ein experimentelles Projekt zum Trainieren eines Reinforcement-Learning-Agenten 
 - Training & Evaluation direkt im Jupyter Notebook
 - Live-Marktdaten abrufbar
 - Custom Gym-Environment `BinanceTradingEnv` für Echtzeitdaten
+- Logging der Trades in `trading_log.csv`
 
 ## Voraussetzungen
 

@@ -49,7 +49,8 @@ def fetch_recent_candles(
     api_key, api_secret = _load_api_credentials()
 
     client = Spot(api_key, api_secret)
-    klines = client.klines(symbol, interval, limit=limit)
+    options = {"limit": limit} if limit is not None else None
+    klines = client.klines(symbol, interval, options)
 
     data: List[List[float]] = [
         [float(k[1]), float(k[2]), float(k[3]), float(k[4]), float(k[5])] for k in klines

@@ -1,6 +1,9 @@
 import os
 from collections import deque
 from typing import Deque, List
+from datetime import datetime
+
+import pandas as pd
 
 import gym
 import numpy as np
@@ -13,10 +16,13 @@ class BinanceTradingEnv(gym.Env):
 
     metadata = {"render.modes": ["human"]}
 
-    def __init__(self, symbol: str = "BTCUSDT", window_size: int = 60):
+    def __init__(self, symbol: str = "BTCUSDT", window_size: int = 60, log_enabled: bool = False):
         super().__init__()
         self.symbol = symbol
         self.window_size = window_size
+        self.log_enabled = log_enabled
+        self.trade_log = []
+        self.current_step = 0
 
         api_key = os.environ.get("BINANCE_API_KEY")
         api_secret = os.environ.get("BINANCE_API_SECRET")
@@ -71,6 +77,9 @@ class BinanceTradingEnv(gym.Env):
         self.position = 0
         self.entry_price = 0.0
         self.unrealized_profit = 0.0
+        self.current_step = 0
+        if self.log_enabled:
+            self.trade_log = []
         return np.array(self.data, dtype=np.float32)
 
     def step(self, action: int):
@@ -81,13 +90,18 @@ class BinanceTradingEnv(gym.Env):
         price = candle[3]  # closing price
 
         prev_unrealized = self.unrealized_profit
+        realized_pnl = 0.0
 
         if action == 1:  # Buy
             if self.position != 1:
+                if self.position == -1:
+                    realized_pnl = self.entry_price - price
                 self.position = 1
                 self.entry_price = price
         elif action == 2:  # Sell
             if self.position != -1:
+                if self.position == 1:
+                    realized_pnl = price - self.entry_price
                 self.position = -1
                 self.entry_price = price
 
@@ -99,6 +113,20 @@ class BinanceTradingEnv(gym.Env):
             self.unrealized_profit = 0.0
 
         reward = self.unrealized_profit - prev_unrealized
+
+        if self.log_enabled:
+            self.trade_log.append(
+                {
+                    "step": self.current_step,
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "action": action,
+                    "price": price,
+                    "position": self.position,
+                    "realized_pnl": realized_pnl,
+                }
+            )
+
+        self.current_step += 1
         obs = np.array(self.data, dtype=np.float32)
         done = False
         info = {
@@ -116,3 +144,7 @@ class BinanceTradingEnv(gym.Env):
 
     def close(self):
         self.client.close_connection()
+
+    def save_trade_log(self, path: str = "trading_log.csv"):
+        if self.log_enabled and self.trade_log:
+            pd.DataFrame(self.trade_log).to_csv(path, index=False)

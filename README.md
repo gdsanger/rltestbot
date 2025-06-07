@@ -8,6 +8,7 @@ Ein experimentelles Projekt zum Trainieren eines Reinforcement-Learning-Agenten 
 - Training & Evaluation direkt im Jupyter Notebook
 - Live-Marktdaten abrufbar
 - Custom Gym-Environment `BinanceTradingEnv` für Echtzeitdaten
+- Logging der Trades in `trading_log.csv`
 
 ## Voraussetzungen
 
@@ -45,6 +46,40 @@ python train_agent.py
 Vor dem Start sollten die Umgebungsvariablen `BINANCE_API_KEY` und
 `BINANCE_API_SECRET` mit den Zugangsdaten des Testnet-Accounts gesetzt sein.
 
+
+
+## Equity-Kurve berechnen
+
+Das Modul `equity_curve.py` bietet die Funktion `calculate_equity_curve`, um eine
+Portfolio-Kurve aus dem gespeicherten `trading_log.csv` zu erzeugen. Dabei wird
+folgende Formel verwendet:
+
+```
+Equity = Startkapital + realisierte Gewinne + (offene Position × aktueller Preis - Einstiegspreis)
+```
+
+Beispiel:
+
+```python
+from equity_curve import calculate_equity_curve
+curve = calculate_equity_curve("trading_log.csv")
+curve.plot()
+```
+
+Die Close-Preise werden automatisch über `fetch_recent_candles` von Binance
+abgerufen. Alternativ können eigene Preisdaten übergeben werden.
+
+### Buy&Hold Benchmark
+
+Um die Agent-Performance einordnen zu können, bietet `equity_curve.py` die
+Funktion `compare_with_buy_and_hold`. Dabei wird zu Beginn das gesamte
+Startkapital in BTC investiert und der Kursverlauf als Benchmark verfolgt.
+
+```python
+from equity_curve import compare_with_buy_and_hold
+fig = compare_with_buy_and_hold("trading_log.csv", return_plot=True)
+fig.show()
+```
 
 ## Haftungsausschluss
 

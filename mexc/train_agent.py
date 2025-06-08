@@ -3,20 +3,26 @@ import yaml
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import BaseCallback
 from .mexc_env import MexcEnv
+import pandas as pd
+import numpy as np
 
 
 class EarlyStopCallback(BaseCallback):
-    def __init__(self, reward_threshold: float = -50.0, check_freq: int = 5, verbose=1):
+    def __init__(self, reward_threshold: float = -50.0, check_freq: int = 1000, verbose=1):
         super().__init__(verbose)
         self.reward_threshold = reward_threshold
         self.check_freq = check_freq
+        self.rewards = []
 
     def _on_step(self) -> bool:
-        if self.n_calls % self.check_freq == 0:
-            ep_info = self.locals.get("infos", [{}])[-1]
-            mean_reward = ep_info.get("episode", {}).get("r", None)
-            if mean_reward is not None and mean_reward < self.reward_threshold:
-                print(f"🚨 Abbruch: Mean reward {mean_reward} < {self.reward_threshold}")
+        if self.locals.get("rewards") is not None:
+            self.rewards.append(self.locals["rewards"][-1])
+        if self.n_calls % self.check_freq == 0 and len(self.rewards) >= self.check_freq:
+            mean_reward = sum(self.rewards[-self.check_freq:]) / self.check_freq
+            if self.verbose:
+                print(f"🔍 Checkpoint: Mean reward of last {self.check_freq} steps: {mean_reward:.2f}")
+            if mean_reward < self.reward_threshold:
+                print(f"🚨 Früher Abbruch: Mean reward {mean_reward:.2f} < {self.reward_threshold}")
                 return False
         return True
 
@@ -36,9 +42,22 @@ def main():
     os.makedirs(agents_dir, exist_ok=True)
     os.makedirs(data_dir, exist_ok=True)
 
-    for symbol in settings.get("symbols", []):
+    for symbol_entry in settings.get("symbols", []):
+        if isinstance(symbol_entry, dict):
+            # z.B. {'ATOMUSDC': {'take_profit': 0.05, ...}}
+            symbol, config = list(symbol_entry.items())[0]
+        else:
+            symbol = symbol_entry
+            config = {}
+
         print(f"🚀 Training startet für {symbol}")
-        env = MexcEnv(symbol=symbol, window_size=window_size, log_enabled=True)
+
+        env = MexcEnv(
+            symbol=symbol,
+            window_size=window_size,
+            log_enabled=True,
+            config=config  # <== NEU: Konfig an die Umgebung übergeben
+        )
 
         model = PPO("MlpPolicy", env, verbose=1, device=device)
 
@@ -47,7 +66,23 @@ def main():
         model.learn(total_timesteps=timesteps, callback=callback)
         model.save(os.path.join(agents_dir, f"ppo_{symbol.lower()}"))
         env.save_trade_log(os.path.join(data_dir, f"training_log_{symbol}.csv"))
+        env.analyze_trade_log()
         print(f"✅ Training abgeschlossen für {symbol}\n")
+
+        # 📊 Sharpe Ratio berechnen
+        try:
+            df = pd.read_csv(os.path.join(data_dir, f"training_log_{symbol}.csv"))
+            returns = df["realized_pnl"].dropna()
+            returns = returns[returns != 0.0]  # Nur abgeschlossene Trades
+
+            if len(returns) > 1:
+                sharpe = returns.mean() / (returns.std() + 1e-9)
+                print(f"📈 Sharpe Ratio für {symbol}: {sharpe:.4f}")
+            else:
+                print(f"⚠️ Nicht genug abgeschlossene Trades für Sharpe Ratio bei {symbol}")
+        except Exception as e:
+            print(f"❌ Fehler bei der Sharpe-Berechnung für {symbol}: {e}")
+
 
 
 if __name__ == "__main__":

@@ -3,7 +3,7 @@ import gym
 from gym import spaces
 from datetime import datetime
 import pandas as pd
-
+import pandas_ta as ta
 from .data_feeder import fetch_klines
 
 
@@ -12,7 +12,7 @@ class MexcEnv(gym.Env):
 
     metadata = {"render.modes": ["human"]}
 
-    def __init__(self, symbol: str = "BTCUSDT", window_size: int = 60, max_steps: int = 1000, data=None, log_enabled: bool = False):
+    def __init__(self, symbol: str = "BTCUSDT", window_size: int = 60, max_steps: int = 1000, data=None, log_enabled: bool = False, config=None):
         super().__init__()
         self.symbol = symbol
         self.window_size = window_size
@@ -21,10 +21,15 @@ class MexcEnv(gym.Env):
         self.log_enabled = log_enabled
         self.trade_log = []
 
+        self.config = config or {}
+        self.take_profit_pct = self.config.get("take_profit", 0.05)
+        self.stop_loss_pct = self.config.get("stop_loss", 0.02)
+        self.quantity = self.config.get("quantity", 0.5)  # aktuell nur informativ
+
         self.observation_space = spaces.Box(
             low=-np.inf,
             high=np.inf,
-            shape=(self.window_size, 5),
+            shape=(self.window_size, 7),
             dtype=np.float32,
         )
         self.action_space = spaces.Discrete(3)
@@ -35,9 +40,23 @@ class MexcEnv(gym.Env):
         self.unrealized_profit = None
 
     def _generate_data(self):
-        limit = self.max_steps + self.window_size
-        data = fetch_klines(symbol=self.symbol, limit=limit, interval="1m")
-        return data  # ✅ richtig
+        limit = self.max_steps + self.window_size + 50  # Puffer für Indikatoren
+        raw_data = fetch_klines(symbol=self.symbol, limit=limit, interval="1m")
+        
+        # Umwandeln in DataFrame für TA-Berechnungen
+        df = pd.DataFrame(raw_data, columns=["open", "high", "low", "close", "volume"])
+        df[["open", "high", "low", "close", "volume"]] = df[["open", "high", "low", "close", "volume"]].astype(float)
+
+        df["rsi"] = ta.rsi(df["close"], length=14)
+        df["ma"] = ta.sma(df["close"], length=20)
+
+        df = df.dropna().reset_index(drop=True)
+
+        # Wir behalten nur relevante Spalten und konvertieren zu np.array
+        result = df[["open", "high", "low", "close", "volume", "rsi", "ma"]].values
+
+        # Kürzen, damit Länge stimmt (falls Dropna etwas abschneidet)
+        return result[-(self.max_steps + self.window_size):]
 
     def reset(self):
         if self.external_data is not None:
@@ -60,29 +79,63 @@ class MexcEnv(gym.Env):
 
         if self.current_step >= len(self.data) - 1:
             obs = np.array(
-                self.data[self.current_step - self.window_size : self.current_step],
+                self.data[self.current_step - self.window_size: self.current_step],
                 dtype=np.float32,
             )
             return obs, 0.0, True, {}
 
         candle = self.data[self.current_step]
         price = candle[3]
-        prev_unrealized = self.unrealized_profit
+        rsi = candle[5]
+        ma = candle[6]
+
+        reward = 0.0
+        done = False
         realized_pnl = 0.0
 
-        if action == 1:  # Buy
-            if self.position != 1:
-                if self.position == -1:
-                    realized_pnl = self.entry_price - price
+        # ==== Positionseröffnung ====
+        if self.position == 0:
+            if action == 1:  # BUY
                 self.position = 1
                 self.entry_price = price
-        elif action == 2:  # Sell
-            if self.position != -1:
-                if self.position == 1:
-                    realized_pnl = price - self.entry_price
+            elif action == 2:  # SHORT
                 self.position = -1
                 self.entry_price = price
+            else:
+                reward = -0.001  # Keine Aktion
 
+        # ==== TP/SL-Check für offene Position ====
+        elif self.position != 0:
+            price_change = (price - self.entry_price) / self.entry_price
+            if self.position == -1:
+                price_change *= -1
+
+            if price_change >= self.take_profit_pct:
+                realized_pnl = abs(price - self.entry_price)
+                reward = realized_pnl * 10
+                self.position = 0
+                self.entry_price = 0
+                done = True  # Optional: Episode beenden
+            elif price_change <= -self.stop_loss_pct:
+                realized_pnl = -abs(price - self.entry_price)
+                reward = realized_pnl * 10
+                self.position = 0
+                self.entry_price = 0
+                done = True  # Optional: Episode beenden
+
+        # ==== Optional: RSI/MA Bonus (nur bei Einstieg) ====
+        if self.position == 1 and action == 1:
+            if rsi < 30:
+                reward += 0.001
+            if price > ma:
+                reward += 0.001
+        elif self.position == -1 and action == 2:
+            if rsi > 70:
+                reward += 0.001
+            if price < ma:
+                reward += 0.001
+
+        # ==== PNL-Anzeige ====
         if self.position == 1:
             self.unrealized_profit = price - self.entry_price
         elif self.position == -1:
@@ -90,28 +143,33 @@ class MexcEnv(gym.Env):
         else:
             self.unrealized_profit = 0.0
 
-        reward = self.unrealized_profit - prev_unrealized
-
+        # ==== Logging ====
         if self.log_enabled:
-            self.trade_log.append(
-                {
-                    "step": self.current_step,
-                    "timestamp": datetime.utcnow().isoformat(),
-                    "action": action,
-                    "price": price,
-                    "position": self.position,
-                    "realized_pnl": realized_pnl,
-                }
-            )
+            self.trade_log.append({
+                "step": self.current_step,
+                "timestamp": datetime.utcnow().isoformat(),
+                "action": action,
+                "price": price,
+                "position": self.position,
+                "realized_pnl": realized_pnl,
+                "reward": reward,
+            })
 
         self.current_step += 1
         obs = np.array(
-            self.data[self.current_step - self.window_size : self.current_step],
+            self.data[self.current_step - self.window_size: self.current_step],
             dtype=np.float32,
         )
-        done = self.current_step >= len(self.data)
+        done = done or self.current_step >= len(self.data)
         info = {"position": self.position, "unrealized_profit": self.unrealized_profit}
+
+        if self.current_step % 100 == 0:
+            print(f"Step {self.current_step} | Reward: {reward:.4f} | Action: {action} | Price: {price:.4f} | PnL: {realized_pnl:.4f}")
+            print(f"RSI: {rsi:.2f} | MA: {ma:.2f} | Close: {price:.5f}")
+
         return obs, reward, done, info
+
+
 
     def render(self, mode="human"):
         if mode == "human":
@@ -126,3 +184,70 @@ class MexcEnv(gym.Env):
     def save_trade_log(self, path: str = "trading_log.csv"):
         if self.log_enabled and self.trade_log:
             pd.DataFrame(self.trade_log).to_csv(path, index=False)
+
+    def export_trade_log(self, filename="trade_log.csv"):
+        import pandas as pd
+        if self.trade_log:
+            df = pd.DataFrame(self.trade_log)
+            df.to_csv(filename, index=False)
+            print(f"[i] Trade-Log gespeichert unter {filename}")
+        else:
+            print("[i] Kein Trade-Log zum Speichern vorhanden.")
+
+    def calculate_sharpe_ratio(self, trades, risk_free_rate=0.0):
+        import numpy as np
+        returns = np.array([t["realized_pnl"] for t in trades if t["realized_pnl"] != 0])
+
+        if len(returns) < 2:
+            return 0.0  # nicht genug Trades
+
+        excess_returns = returns - risk_free_rate
+        mean_return = np.mean(excess_returns)
+        std_return = np.std(excess_returns)
+
+        if std_return == 0:
+            return 0.0
+
+        sharpe = mean_return / std_return
+        return sharpe
+    
+    def analyze_trade_log(self, bins=10):
+        import matplotlib.pyplot as plt
+        import seaborn as sns
+
+        if not self.trade_log:
+            print("❌ Kein Trade-Log vorhanden.")
+            return
+
+        df = pd.DataFrame(self.trade_log)
+        if df.empty or "price" not in df or "action" not in df:
+            print("❌ Trade-Log unvollständig.")
+            return
+
+        # RSI & MA rekonstruieren aus Zeitpunkten
+        analysis_data = self.data[[entry["step"] for entry in self.trade_log]]
+        df["rsi"] = analysis_data[:, 5]
+        df["ma"] = analysis_data[:, 6]
+        df["close"] = analysis_data[:, 3]
+
+        # Heatmap: RSI vs. Aktion
+        plt.figure(figsize=(10, 6))
+        df["rsi_bin"] = pd.cut(df["rsi"], bins=bins)
+        action_map = {0: "Hold", 1: "Buy", 2: "Sell"}
+        df["action_label"] = df["action"].map(action_map)
+
+        heat = pd.crosstab(df["rsi_bin"], df["action_label"])
+        sns.heatmap(heat, annot=True, fmt="d", cmap="YlGnBu")
+        plt.title(f"🔍 Action Count by RSI Range")
+        plt.ylabel("RSI-Bereich")
+        plt.xlabel("Aktion")
+        plt.tight_layout()
+        plt.show()
+
+        # Optional: Profit nach RSI
+        if "realized_pnl" in df:
+            profit_per_rsi = df.groupby("rsi_bin")["realized_pnl"].sum()
+            profit_per_rsi.plot(kind="bar", color="skyblue", title="💸 Profit nach RSI-Zone")
+            plt.ylabel("Profit / Verlust")
+            plt.tight_layout()
+            plt.show()

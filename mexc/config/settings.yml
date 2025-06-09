@@ -1,7 +1,5 @@
 symbols:
   - ATOMUSDC:
-      take_profit: 0.005  # 0.5% gain
-      stop_loss: 0.002    # 1% loss
       quanty: 25.0 # 0.5 ATOMUSDC
 
 train:

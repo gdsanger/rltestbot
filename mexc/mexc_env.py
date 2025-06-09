@@ -22,8 +22,6 @@ class MexcEnv(gym.Env):
         self.trade_log = []
 
         self.config = config or {}
-        self.take_profit_pct = self.config.get("take_profit", 0.05)
-        self.stop_loss_pct = self.config.get("stop_loss", 0.02)
         self.quantity = self.config.get("quantity", 0.5)  # aktuell nur informativ
 
         self.observation_space = spaces.Box(
@@ -94,34 +92,20 @@ class MexcEnv(gym.Env):
         realized_pnl = 0.0
 
         # ==== Positionseröffnung ====
-        if self.position == 0:
-            if action == 1:  # BUY
+        prev_unrealized = self.unrealized_profit
+
+        if action == 1:  # BUY / Long
+            if self.position != 1:
+                if self.position == -1:
+                    realized_pnl = self.entry_price - price
                 self.position = 1
                 self.entry_price = price
-            elif action == 2:  # SHORT
+        elif action == 2:  # SELL / Short
+            if self.position != -1:
+                if self.position == 1:
+                    realized_pnl = price - self.entry_price
                 self.position = -1
                 self.entry_price = price
-            else:
-                reward = -0.001  # Keine Aktion
-
-        # ==== TP/SL-Check für offene Position ====
-        elif self.position != 0:
-            price_change = (price - self.entry_price) / self.entry_price
-            if self.position == -1:
-                price_change *= -1
-
-            if price_change >= self.take_profit_pct:
-                realized_pnl = abs(price - self.entry_price)
-                reward = realized_pnl * 10
-                self.position = 0
-                self.entry_price = 0
-                done = True  # Optional: Episode beenden
-            elif price_change <= -self.stop_loss_pct:
-                realized_pnl = -abs(price - self.entry_price)
-                reward = realized_pnl * 10
-                self.position = 0
-                self.entry_price = 0
-                done = True  # Optional: Episode beenden
 
         # ==== Optional: RSI/MA Bonus (nur bei Einstieg) ====
         if self.position == 1 and action == 1:
@@ -142,6 +126,8 @@ class MexcEnv(gym.Env):
             self.unrealized_profit = self.entry_price - price
         else:
             self.unrealized_profit = 0.0
+
+        reward += self.unrealized_profit - prev_unrealized
 
         # ==== Logging ====
         if self.log_enabled:

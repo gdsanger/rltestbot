@@ -5,6 +5,7 @@ from stable_baselines3.common.callbacks import BaseCallback
 from .mexc_env import MexcEnv
 import pandas as pd
 import numpy as np
+from trade_analysis import summarize_trades
 
 
 class EarlyStopCallback(BaseCallback):
@@ -64,7 +65,19 @@ def main():
 
         model.learn(total_timesteps=timesteps, callback=callback)
         model.save(os.path.join(agents_dir, f"ppo_{symbol.lower()}"))
-        env.save_trade_log(os.path.join(data_dir, f"training_log_{symbol}.csv"))
+        log_path = os.path.join(data_dir, f"training_log_{symbol}.csv")
+        env.save_trade_log(log_path)
+
+        summary = summarize_trades(log_path)
+        print("\n===== Training Summary =====")
+        print(f"Trades: {summary['total_trades']}")
+        print(f"Gewinn-Trades: {summary['winning_trades']}")
+        print(f"Verlust-Trades: {summary['losing_trades']}")
+        print(f"Gesamter PnL: {summary['total_pnl']:.2f}")
+        wl = summary['win_loss_ratio']
+        ratio_str = f"{wl:.2f}" if wl not in (float('inf'), float('-inf')) else 'inf'
+        print(f"Win/Loss-Verhältnis: {ratio_str}")
+
         env.analyze_trade_log()
         print(f"✅ Training abgeschlossen für {symbol}\n")
 

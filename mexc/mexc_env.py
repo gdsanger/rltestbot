@@ -44,7 +44,19 @@ class MexcEnv(gym.Env):
         df = pd.DataFrame(raw_data, columns=["open", "high", "low", "close", "volume"])
         df[["open", "high", "low", "close", "volume"]] = df[["open", "high", "low", "close", "volume"]].astype(float)
 
-        df["macd"], df["macd_signal"], df["macd_hist"] = ta.macd(df["close"])
+        # pandas_ta.macd gibt ein DataFrame mit drei Spalten zurück. Eine
+        # direkte Zuweisung wie ``df["macd"], df["macd_signal"], ... = ta.macd``
+        # würde jedoch nur die Spaltennamen zuweisen. Wir extrahieren deshalb
+        # explizit die Werte.
+        macd = ta.macd(df["close"])
+        if isinstance(macd, pd.DataFrame):
+            df["macd"] = macd.iloc[:, 0]
+            df["macd_signal"] = macd.iloc[:, 1]
+            df["macd_hist"] = macd.iloc[:, 2]
+        else:
+            df["macd"] = macd
+            df["macd_signal"] = np.nan
+            df["macd_hist"] = np.nan
         df["atr"] = ta.atr(df["high"], df["low"], df["close"])
         # pandas_ta.stochrsi liefert zwei Spalten (K und D). Wir verwenden die
         # K-Linie und vermeiden damit einen mehrspaltigen DataFrame beim

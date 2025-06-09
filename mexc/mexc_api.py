@@ -34,6 +34,7 @@ def fetch_symbol_specs(symbol: str):
         if s["symbol"] == symbol:
             qty_precision = 0
             price_precision = 0
+            order_types = s.get("orderTypes", [])
             for f in s["filters"]:
                 if f["filterType"] == "LOT_SIZE":
                     step_size = float(f["stepSize"])
@@ -44,7 +45,8 @@ def fetch_symbol_specs(symbol: str):
 
             symbol_specs[symbol] = {
                 "qty_precision": qty_precision,
-                "price_precision": price_precision
+                "price_precision": price_precision,
+                "order_types": order_types,
             }
             return symbol_specs[symbol]
 

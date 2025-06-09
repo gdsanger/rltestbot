@@ -9,7 +9,7 @@ from stable_baselines3 import PPO
 from .mexc_precision import adjust_quantity
 from .mexc_env import MexcEnv
 from .data_feeder import fetch_recent_candles, get_account_balance
-from .mexc_api import place_order
+from .mexc_api import place_order, fetch_symbol_specs
 
 def init_csv(path: str):
     if not os.path.exists(path):
@@ -95,11 +95,21 @@ def main():
             print(f"quantity: {quantity}")
             # Order ausführen
             if action == 1:  # Buy
-                try:
-                    place_order(symbol=symbol, side="BUY", quantity=quantity, price=price)
-                    print(f"[{symbol}] ✅ BUY Order ausgeführt")
-                except Exception as e:
-                    print(f"[{symbol}] ❌ Fehler bei BUY: {e}")
+                base_asset = symbol.replace("USDC", "").replace("USDT", "")
+                asset_balance = get_account_balance(base_asset)
+                if asset_balance > 0:
+                    print(f"[{symbol}] ⚠️ Bereits {asset_balance} {base_asset} vorhanden, überspringe Kauf")
+                else:
+                    try:
+                        specs = fetch_symbol_specs(symbol)
+                        use_market = "MARKET" in specs.get("order_types", [])
+                        if use_market:
+                            place_order(symbol=symbol, side="BUY", quantity=quantity)
+                        else:
+                            place_order(symbol=symbol, side="BUY", quantity=quantity, price=price)
+                        print(f"[{symbol}] ✅ BUY Order ausgeführt")
+                    except Exception as e:
+                        print(f"[{symbol}] ❌ Fehler bei BUY: {e}")
 
             elif action == 2:  # Sell
                 base_asset = symbol.replace("USDC", "").replace("USDT", "")
@@ -108,7 +118,12 @@ def main():
                 if asset_balance > 0:
                     sell_quantity = adjust_quantity(symbol, asset_balance)
                     try:
-                        place_order(symbol=symbol, side="SELL", quantity=sell_quantity, price=price)
+                        specs = fetch_symbol_specs(symbol)
+                        use_market = "MARKET" in specs.get("order_types", [])
+                        if use_market:
+                            place_order(symbol=symbol, side="SELL", quantity=sell_quantity)
+                        else:
+                            place_order(symbol=symbol, side="SELL", quantity=sell_quantity, price=price)
                         print(f"[{symbol}] ✅ SELL Order ausgeführt")
                     except Exception as e:
                         print(f"[{symbol}] ❌ Fehler bei SELL: {e}")

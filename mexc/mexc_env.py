@@ -26,7 +26,7 @@ class MexcEnv(gym.Env):
         self.observation_space = spaces.Box(
             low=-np.inf,
             high=np.inf,
-            shape=(self.window_size, 7),
+            shape=(self.window_size, 10),
             dtype=np.float32,
         )
         self.action_space = spaces.Discrete(3)
@@ -60,7 +60,11 @@ class MexcEnv(gym.Env):
         df = df.dropna().reset_index(drop=True)
 
         # Wir behalten nur relevante Spalten und konvertieren zu np.array
-        result = df[["open", "high", "low", "close", "volume", "rsi", "ma"]].values
+        result = df[[
+            "open", "high", "low", "close", "volume",
+            "macd", "macd_signal", "macd_hist",
+            "atr", "stochrsi"
+        ]].dropna().values
 
         # Kürzen, damit Länge stimmt (falls Dropna etwas abschneidet)
         return result[-(self.max_steps + self.window_size):]

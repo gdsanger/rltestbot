@@ -89,7 +89,7 @@ def main():
         log_path = os.path.join(data_dir, f"training_log_{symbol}.csv")
         env.save_trade_log(log_path)
 
-        summary = summarize_trades(log_path)
+        summary = summarize_trades(log_path, start_step=50_000)
         print("\n===== Training Summary =====")
         print(f"Trades: {summary['total_trades']}")
         print(f"Gewinn-Trades: {summary['winning_trades']}")

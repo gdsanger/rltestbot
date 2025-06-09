@@ -9,7 +9,7 @@ def main():
     model.learn(total_timesteps=100_000)
     model.save("ppo_cryptoenv")
     env.save_trade_log()
-    summary = summarize_trades()
+    summary = summarize_trades(start_step=50_000)
     print("\n===== Training Summary =====")
     print(f"Trades: {summary['total_trades']}")
     print(f"Gewinn-Trades: {summary['winning_trades']}")

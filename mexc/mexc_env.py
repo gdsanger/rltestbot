@@ -169,12 +169,7 @@ class MexcEnv(gym.Env):
 
         delta_unrealized = self.unrealized_profit - prev_unrealized
         if action == 0:
-            if delta_unrealized > 0:
-                reward = 2 * delta_unrealized
-            elif delta_unrealized < 0:
-                reward = 5 * delta_unrealized
-            else:
-                reward = 0.0
+            reward = 0.0
         else:
             reward = delta_unrealized
 

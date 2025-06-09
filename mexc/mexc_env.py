@@ -26,7 +26,7 @@ class MexcEnv(gym.Env):
         self.observation_space = spaces.Box(
             low=-np.inf,
             high=np.inf,
-            shape=(self.window_size, 7),
+            shape=(self.window_size, 8),
             dtype=np.float32,
         )
         self.action_space = spaces.Discrete(3)
@@ -47,10 +47,19 @@ class MexcEnv(gym.Env):
         df["rsi"] = ta.rsi(df["close"], length=14)
         df["ma"] = ta.sma(df["close"], length=20)
 
+        # pandas_ta.stochrsi liefert zwei Spalten (K und D). Wir verwenden die
+        # K-Linie und vermeiden damit einen mehrspaltigen DataFrame beim
+        # Zuweisen.
+        stochrsi = ta.stochrsi(df["close"])
+        if isinstance(stochrsi, pd.DataFrame):
+            df["stochrsi"] = stochrsi.iloc[:, 0]
+        else:
+            df["stochrsi"] = stochrsi
+
         df = df.dropna().reset_index(drop=True)
 
         # Wir behalten nur relevante Spalten und konvertieren zu np.array
-        result = df[["open", "high", "low", "close", "volume", "rsi", "ma"]].values
+        result = df[["open", "high", "low", "close", "volume", "rsi", "ma", "stochrsi"]].values
 
         # Kürzen, damit Länge stimmt (falls Dropna etwas abschneidet)
         return result[-(self.max_steps + self.window_size):]

@@ -14,7 +14,7 @@ def train_and_test(total_timesteps: int = 10000, window_size: int = 60):
     env = DummyVecEnv([lambda: CryptoEnv(window_size=window_size, data=data, log_enabled=True)])
 
     # Train PPO agent
-    model = PPO("MlpPolicy", env, verbose=1)
+    model = PPO("MlpPolicy", env, verbose=1, device="cpu")
     model.learn(total_timesteps=total_timesteps)
     model.save("ppo_cryptoenv_real")
 

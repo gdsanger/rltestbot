@@ -5,7 +5,7 @@ from trade_analysis import summarize_trades
 
 def main():
     env = CryptoEnv(log_enabled=True)
-    model = PPO("MlpPolicy", env, verbose=1)
+    model = PPO("MlpPolicy", env, verbose=1, device="cpu")
     model.learn(total_timesteps=100_000)
     model.save("ppo_cryptoenv")
     env.save_trade_log()

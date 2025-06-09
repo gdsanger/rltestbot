@@ -41,6 +41,11 @@ def main():
         default=settings.get("default_strategy", "macd_atr_stochrsi"),
         help="Name der Trading-Strategie",
     )
+    parser.add_argument(
+        "--symbol",
+        help="Zu trainierendes Handelspaar (z.B. BTCUSDT). Überschreibt settings.yml",
+    )
+
     args = parser.parse_args()
     strategy = args.strategy
 
@@ -53,7 +58,12 @@ def main():
     os.makedirs(agents_dir, exist_ok=True)
     os.makedirs(data_dir, exist_ok=True)
 
-    for symbol_entry in settings.get("symbols", []):
+    if args.symbol:
+        symbol_entries = [args.symbol]
+    else:
+        symbol_entries = settings.get("symbols", [])
+
+    for symbol_entry in symbol_entries:
         if isinstance(symbol_entry, dict):
             symbol, config = list(symbol_entry.items())[0]
         else:

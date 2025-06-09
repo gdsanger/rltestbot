@@ -44,7 +44,6 @@ def main():
 
     for symbol_entry in settings.get("symbols", []):
         if isinstance(symbol_entry, dict):
-            # z.B. {'ATOMUSDC': {'quantity': 1.0}}
             symbol, config = list(symbol_entry.items())[0]
         else:
             symbol = symbol_entry

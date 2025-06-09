@@ -22,7 +22,6 @@ class MexcEnv(gym.Env):
         self.trade_log = []
 
         self.config = config or {}
-        self.quantity = self.config.get("quantity", 0.5)  # aktuell nur informativ
 
         self.observation_space = spaces.Box(
             low=-np.inf,

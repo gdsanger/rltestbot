@@ -23,12 +23,8 @@ class MexcEnv(gym.Env):
 
         self.config = config or {}
 
-        self.observation_space = spaces.Box(
-            low=-np.inf,
-            high=np.inf,
-            shape=(self.window_size, 7),
-            dtype=np.float32,
-        )
+        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(self.window_size, 10), dtype=np.float32)
+
         self.action_space = spaces.Discrete(3)
         self.data = None
         self.current_step = None
@@ -44,13 +40,18 @@ class MexcEnv(gym.Env):
         df = pd.DataFrame(raw_data, columns=["open", "high", "low", "close", "volume"])
         df[["open", "high", "low", "close", "volume"]] = df[["open", "high", "low", "close", "volume"]].astype(float)
 
-        df["rsi"] = ta.rsi(df["close"], length=14)
-        df["ma"] = ta.sma(df["close"], length=20)
+        df["macd"], df["macd_signal"], df["macd_hist"] = ta.macd(df["close"])
+        df["atr"] = ta.atr(df["high"], df["low"], df["close"])
+        df["stochrsi"] = ta.stochrsi(df["close"])
 
         df = df.dropna().reset_index(drop=True)
 
         # Wir behalten nur relevante Spalten und konvertieren zu np.array
-        result = df[["open", "high", "low", "close", "volume", "rsi", "ma"]].values
+        result = df[[
+            "open", "high", "low", "close", "volume",
+            "macd", "macd_signal", "macd_hist",
+            "atr", "stochrsi"
+        ]].dropna().values
 
         # Kürzen, damit Länge stimmt (falls Dropna etwas abschneidet)
         return result[-(self.max_steps + self.window_size):]

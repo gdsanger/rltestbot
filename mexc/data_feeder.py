@@ -125,4 +125,7 @@ def get_account_balance(asset: str = "USDC") -> float:
         if b["asset"] == asset:
             return float(b["free"])
 
-    raise ValueError(f"Asset {asset} not found in account balances")
+    # Wenn der gesuchte Asset nicht gefunden wird, wird 0 zurückgegeben anstatt
+    # eine Exception auszulösen. Dadurch kann z.B. beim Veräußern eines Assets,
+    # das nicht vorhanden ist, die Anwendung trotzdem fortfahren.
+    return 0.0

@@ -38,6 +38,17 @@ def log_trade(path: str, symbol: str, action: int, price: float, position: int, 
         ])
 
 
+def detect_strategy_from_model(model, strategies: dict, fallback: str) -> str:
+    """Return the strategy name that matches the loaded model."""
+    obs_dim = model.observation_space.shape[-1]
+    indicator_count = obs_dim - 7  # 5 base cols + position + pnl
+    for name, cfg in strategies.items():
+        indicators = cfg.get("indicators", [])
+        if len(indicators) == indicator_count:
+            return name
+    return fallback
+
+
 def main():
     parser = argparse.ArgumentParser()
     base_dir = os.path.dirname(__file__)
@@ -65,12 +76,19 @@ def main():
     observations = {}
     for symbol in settings.get("symbols", []):
         model_path = os.path.join(agents_dir, f"ppo_{symbol.lower()}")
-        models[symbol] = PPO.load(model_path)       
+        model = PPO.load(model_path)
+        models[symbol] = model
+        strategies_cfg = settings.get("strategies", {})
+        detected = detect_strategy_from_model(model, strategies_cfg, strategy)
+        if detected != strategy:
+            print(
+                f"[{symbol}] ⚠️ Using strategy '{detected}' to match loaded model (requested '{strategy}')"
+            )
         env = MexcEnv(
             symbol=symbol,
             window_size=window_size,
             log_enabled=False,
-            strategy=strategy,
+            strategy=detected,
             config={"rewards": settings.get("rewards", {})},
         )
         obs = env.reset()
@@ -144,12 +162,13 @@ def main():
 
             if done:
                 new_data = fetch_recent_candles(symbol=symbol, limit=window_size, return_df=False)
+                current_strategy = envs[symbol].strategy
                 envs[symbol] = MexcEnv(
                     symbol=symbol,
                     window_size=window_size,
                     data=new_data,
                     log_enabled=False,
-                    strategy=strategy,
+                    strategy=current_strategy,
                     config={"rewards": settings.get("rewards", {})},
                 )
                 observations[symbol] = envs[symbol].reset()

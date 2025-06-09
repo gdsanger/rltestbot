@@ -1,6 +1,6 @@
 symbols:
-  - ATOMEUR
-  - ADAEUR
+  - DOGEEUR
+  - PEPEEUR
 
 strategies:
   ma_rsi:

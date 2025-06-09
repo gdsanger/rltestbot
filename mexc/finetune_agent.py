@@ -43,6 +43,7 @@ def main():
         window_size=settings.get("train", {}).get("window_size", 60),
         log_enabled=True,
         strategy=args.strategy,
+        config={"rewards": settings.get("rewards", {})},
     )
 
     model = PPO.load(model_path, env=env)

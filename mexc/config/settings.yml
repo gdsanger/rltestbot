@@ -16,3 +16,9 @@ train:
   window_size: 60
   total_timesteps: 100000
   device: cpu
+
+rewards:
+  hold: 0
+  buy: 1
+  profit_multiplier: 10
+  loss_multiplier: 20

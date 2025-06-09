@@ -33,6 +33,12 @@ class MexcEnv(gym.Env):
         self.config = config or {}
         self.strategy = strategy
 
+        rewards = self.config.get("rewards", {})
+        self.reward_hold = rewards.get("hold", 0.0)
+        self.reward_buy = rewards.get("buy", 1.0)
+        self.reward_profit_multiplier = rewards.get("profit_multiplier", 10.0)
+        self.reward_loss_multiplier = rewards.get("loss_multiplier", 20.0)
+
         self.base_columns = ["open", "high", "low", "close", "volume"]
         self.strategy_columns = self._strategy_columns()
         self.feature_columns = self.base_columns + self.strategy_columns
@@ -125,41 +131,35 @@ class MexcEnv(gym.Env):
 
         candle = self.data[self.current_step]
         price = candle[self.feature_indices["close"]]
-        rsi = candle[self.feature_indices["rsi"]] if "rsi" in self.feature_indices else None
-        ma = candle[self.feature_indices["ma"]] if "ma" in self.feature_indices else None
-
         reward = 0.0
         done = False
         realized_pnl = 0.0
 
-        # ==== Positionseröffnung ====
-        prev_unrealized = self.unrealized_profit
+        if action == 0:
+            reward += self.reward_hold
 
         if action == 1:  # BUY / Long
             if self.position != 1:
                 if self.position == -1:
                     realized_pnl = self.entry_price - price
+                    if realized_pnl > 0:
+                        reward += realized_pnl * self.reward_profit_multiplier
+                    elif realized_pnl < 0:
+                        reward -= abs(realized_pnl) * self.reward_loss_multiplier
                 self.position = 1
                 self.entry_price = price
+            reward += self.reward_buy
         elif action == 2:  # SELL / Short
             if self.position != -1:
                 if self.position == 1:
                     realized_pnl = price - self.entry_price
+                    if realized_pnl > 0:
+                        reward += realized_pnl * self.reward_profit_multiplier
+                    elif realized_pnl < 0:
+                        reward -= abs(realized_pnl) * self.reward_loss_multiplier
                 self.position = -1
                 self.entry_price = price
 
-        # ==== Optional: Indicator Bonus (nur bei Einstieg) ====
-        if rsi is not None and ma is not None:
-            if self.position == 1 and action == 1:
-                if rsi < 30:
-                    reward += 0.001
-                if price > ma:
-                    reward += 0.001
-            elif self.position == -1 and action == 2:
-                if rsi > 70:
-                    reward += 0.001
-                if price < ma:
-                    reward += 0.001
 
         # ==== PNL-Anzeige ====
         if self.position == 1:
@@ -168,8 +168,6 @@ class MexcEnv(gym.Env):
             self.unrealized_profit = self.entry_price - price
         else:
             self.unrealized_profit = 0.0
-
-        reward += self.unrealized_profit - prev_unrealized
 
         # ==== Logging ====
         if self.log_enabled:
@@ -195,8 +193,6 @@ class MexcEnv(gym.Env):
             print(
                 f"Step {self.current_step} | Reward: {reward:.4f} | Action: {action} | Price: {price:.4f} | PnL: {realized_pnl:.4f}"
             )
-            if rsi is not None and ma is not None:
-                print(f"RSI: {rsi:.2f} | MA: {ma:.2f} | Close: {price:.5f}")
 
         return obs, reward, done, info
 

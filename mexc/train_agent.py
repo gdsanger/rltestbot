@@ -72,11 +72,13 @@ def main():
 
         print(f"🚀 Training startet für {symbol}")
 
+        env_config = {**config, "rewards": settings.get("rewards", {})}
+
         env = MexcEnv(
             symbol=symbol,
             window_size=window_size,
             log_enabled=True,
-            config=config,
+            config=env_config,
             strategy=strategy,
         )
 

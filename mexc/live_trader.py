@@ -71,6 +71,7 @@ def main():
             window_size=window_size,
             log_enabled=False,
             strategy=strategy,
+            config={"rewards": settings.get("rewards", {})},
         )
         obs = env.reset()
         envs[symbol] = env
@@ -149,6 +150,7 @@ def main():
                     data=new_data,
                     log_enabled=False,
                     strategy=strategy,
+                    config={"rewards": settings.get("rewards", {})},
                 )
                 observations[symbol] = envs[symbol].reset()
 

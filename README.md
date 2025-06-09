@@ -67,6 +67,19 @@ geladen. Lege dazu eine `.env`-Datei im Projektverzeichnis mit
 `MEXC_API_KEY` und `MEXC_API_SECRET` an. Die Module laden diese Werte beim
 Start automatisch.
 
+### Regelmäßiges Finetuning
+
+Um ein vorhandenes Modell weiter zu verbessern, kann `mexc/finetune_agent.py`
+genutzt werden. Das Skript lädt den Agenten für das angegebene Handelspaar und
+führt weitere Trainingsschritte aus.
+
+```bash
+python mexc/finetune_agent.py --symbol ATOMUSDC --timesteps 50000
+```
+
+Dieses Kommando lässt sich beispielsweise täglich per Cron ausführen, um den
+Agenten aktuell zu halten.
+
 
 
 ## Equity-Kurve berechnen

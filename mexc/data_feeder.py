@@ -97,7 +97,7 @@ def fetch_recent_candles(symbol: str, limit: int = 60, return_df: bool = True):
     else:
         return [[float(k[1]), float(k[2]), float(k[3]), float(k[4])] for k in raw_data]
 
-def get_account_balance(asset: str = "USDC") -> float:
+def get_account_balance(asset: str = "EUR") -> float:
     api_key = API_KEY
     api_secret = API_SECRET
     url = "https://api.mexc.com/api/v3/account"

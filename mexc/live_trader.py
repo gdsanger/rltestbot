@@ -80,9 +80,9 @@ def main():
 
     print("Lokale Zeit:", time.time())
     print("🚀 Starte Live-Handel (live) auf MEXC..." )
-    print(f"Aktueller USDC-Kontostand: {get_account_balance('USDC')}")
+    print(f"Aktueller EUR-Kontostand: {get_account_balance('EUR')}")
     while True:
-        balance = get_account_balance("USDC")
+        balance = get_account_balance("EUR")
         invest_amount = balance * invest_ratio
        
         for symbol, model in models.items():
@@ -95,7 +95,7 @@ def main():
             print(f"quantity: {quantity}")
             # Order ausführen
             if action == 1:  # Buy
-                base_asset = symbol.replace("USDC", "").replace("USDT", "")
+                base_asset = symbol.replace("EUR", "").replace("EUR", "")
                 asset_balance = get_account_balance(base_asset)
                 if asset_balance > 0:
                     print(f"[{symbol}] ⚠️ Bereits {asset_balance} {base_asset} vorhanden, überspringe Kauf")
@@ -112,7 +112,7 @@ def main():
                         print(f"[{symbol}] ❌ Fehler bei BUY: {e}")
 
             elif action == 2:  # Sell
-                base_asset = symbol.replace("USDC", "").replace("USDT", "")
+                base_asset = symbol.replace("EUR", "").replace("EUR", "")
                 asset_balance = get_account_balance(base_asset)
                 print(f"[{symbol}] Kontostand {base_asset}: {asset_balance}")
                 if asset_balance > 0:

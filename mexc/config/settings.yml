@@ -1,6 +1,6 @@
 symbols:
-  - ATOMUSDC
-  - ADAUSDC
+  - ATOMEUR
+  - ADAEUR
 
 strategies:
   ma_rsi:

@@ -46,8 +46,6 @@ class MexcEnv(gym.Env):
 
         df["macd"], df["macd_signal"], df["macd_hist"] = ta.macd(df["close"])
         df["atr"] = ta.atr(df["high"], df["low"], df["close"])
-        df["stochrsi"] = ta.stochrsi(df["close"])
-
         # pandas_ta.stochrsi liefert zwei Spalten (K und D). Wir verwenden die
         # K-Linie und vermeiden damit einen mehrspaltigen DataFrame beim
         # Zuweisen.

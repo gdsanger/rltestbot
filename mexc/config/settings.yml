@@ -1,5 +1,5 @@
 symbols:
-  - ICPUSDC
+  - ATOMUSDC
 
 strategies:
   ma_rsi:
@@ -9,7 +9,7 @@ strategies:
   bollinger_bands:
     indicators: [bb_lower, bb_middle, bb_upper]
 
-default_strategy: macd_atr_stochrsi
+default_strategy: ma_rsi
 
 train:
   window_size: 60

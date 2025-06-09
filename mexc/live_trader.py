@@ -76,7 +76,7 @@ def main():
         envs[symbol] = env
         observations[symbol] = obs
 
-    invest_ratio = settings.get("live_trading", {}).get("invest_ratio", 0.1)
+    invest_ratio = settings.get("live_trading", {}).get("invest_ratio", 0.3)
 
     print("Lokale Zeit:", time.time())
     print("🚀 Starte Live-Handel (live) auf MEXC..." )

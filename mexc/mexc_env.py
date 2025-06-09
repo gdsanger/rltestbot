@@ -43,10 +43,12 @@ class MexcEnv(gym.Env):
         self.strategy_columns = self._strategy_columns()
         self.feature_columns = self.base_columns + self.strategy_columns
 
+        # Observation now also contains the current position and the
+        # unrealized profit so the agent is aware of the open trade state.
         self.observation_space = spaces.Box(
             low=-np.inf,
             high=np.inf,
-            shape=(self.window_size, len(self.feature_columns)),
+            shape=(self.window_size, len(self.feature_columns) + 2),
             dtype=np.float32,
         )
         self.action_space = spaces.Discrete(3)
@@ -114,19 +116,25 @@ class MexcEnv(gym.Env):
         self.unrealized_profit = 0.0
         if self.log_enabled:
             self.trade_log = []
-        return np.array(
+        window = np.array(
             self.data[self.current_step - self.window_size : self.current_step],
             dtype=np.float32,
         )
+        position_feat = np.full((self.window_size, 1), self.position, dtype=np.float32)
+        pnl_feat = np.full((self.window_size, 1), self.unrealized_profit, dtype=np.float32)
+        return np.hstack((window, position_feat, pnl_feat))
 
     def step(self, action: int):
         assert self.action_space.contains(action)
 
         if self.current_step >= len(self.data) - 1:
-            obs = np.array(
+            window = np.array(
                 self.data[self.current_step - self.window_size: self.current_step],
                 dtype=np.float32,
             )
+            position_feat = np.full((self.window_size, 1), self.position, dtype=np.float32)
+            pnl_feat = np.full((self.window_size, 1), self.unrealized_profit, dtype=np.float32)
+            obs = np.hstack((window, position_feat, pnl_feat))
             return obs, 0.0, True, {}
 
         candle = self.data[self.current_step]
@@ -135,28 +143,18 @@ class MexcEnv(gym.Env):
         done = False
         realized_pnl = 0.0
 
-        if action == 0:
-            reward += self.reward_hold
+        prev_unrealized = self.unrealized_profit
 
         if action == 1:  # BUY / Long
             if self.position != 1:
                 if self.position == -1:
                     realized_pnl = self.entry_price - price
-                    if realized_pnl > 0:
-                        reward += realized_pnl * self.reward_profit_multiplier
-                    elif realized_pnl < 0:
-                        reward -= abs(realized_pnl) * self.reward_loss_multiplier
                 self.position = 1
                 self.entry_price = price
-            reward += self.reward_buy
         elif action == 2:  # SELL / Short
             if self.position != -1:
                 if self.position == 1:
                     realized_pnl = price - self.entry_price
-                    if realized_pnl > 0:
-                        reward += realized_pnl * self.reward_profit_multiplier
-                    elif realized_pnl < 0:
-                        reward -= abs(realized_pnl) * self.reward_loss_multiplier
                 self.position = -1
                 self.entry_price = price
 
@@ -168,6 +166,17 @@ class MexcEnv(gym.Env):
             self.unrealized_profit = self.entry_price - price
         else:
             self.unrealized_profit = 0.0
+
+        delta_unrealized = self.unrealized_profit - prev_unrealized
+        if action == 0:
+            if delta_unrealized > 0:
+                reward = 2 * delta_unrealized
+            elif delta_unrealized < 0:
+                reward = 5 * delta_unrealized
+            else:
+                reward = 0.0
+        else:
+            reward = delta_unrealized
 
         # ==== Logging ====
         if self.log_enabled:
@@ -182,10 +191,13 @@ class MexcEnv(gym.Env):
             })
 
         self.current_step += 1
-        obs = np.array(
+        window = np.array(
             self.data[self.current_step - self.window_size: self.current_step],
             dtype=np.float32,
         )
+        position_feat = np.full((self.window_size, 1), self.position, dtype=np.float32)
+        pnl_feat = np.full((self.window_size, 1), self.unrealized_profit, dtype=np.float32)
+        obs = np.hstack((window, position_feat, pnl_feat))
         done = done or self.current_step >= len(self.data)
         info = {"position": self.position, "unrealized_profit": self.unrealized_profit}
 

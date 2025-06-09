@@ -20,10 +20,12 @@ class CryptoEnv(gym.Env):
         self.log_enabled = log_enabled
         self.trade_log = []
 
+        # Observation includes OHLCV data plus current position and
+        # unrealized profit so the agent knows the state of its open trade.
         self.observation_space = spaces.Box(
             low=-np.inf,
             high=np.inf,
-            shape=(self.window_size, 5),
+            shape=(self.window_size, 7),
             dtype=np.float32,
         )
         self.action_space = spaces.Discrete(3)
@@ -56,19 +58,25 @@ class CryptoEnv(gym.Env):
         self.unrealized_profit = 0.0
         if self.log_enabled:
             self.trade_log = []
-        return np.array(
+        window = np.array(
             self.data[self.current_step - self.window_size : self.current_step],
             dtype=np.float32,
         )
+        position_feat = np.full((self.window_size, 1), self.position, dtype=np.float32)
+        pnl_feat = np.full((self.window_size, 1), self.unrealized_profit, dtype=np.float32)
+        return np.hstack((window, position_feat, pnl_feat))
 
     def step(self, action: int):
         assert self.action_space.contains(action)
 
         if self.current_step >= len(self.data) - 1:
-            obs = np.array(
+            window = np.array(
                 self.data[self.current_step - self.window_size : self.current_step],
                 dtype=np.float32,
             )
+            position_feat = np.full((self.window_size, 1), self.position, dtype=np.float32)
+            pnl_feat = np.full((self.window_size, 1), self.unrealized_profit, dtype=np.float32)
+            obs = np.hstack((window, position_feat, pnl_feat))
             return obs, 0.0, True, {}
 
         candle = self.data[self.current_step]
@@ -96,7 +104,16 @@ class CryptoEnv(gym.Env):
         else:
             self.unrealized_profit = 0.0
 
-        reward = self.unrealized_profit - prev_unrealized
+        delta_unrealized = self.unrealized_profit - prev_unrealized
+        if action == 0:
+            if delta_unrealized > 0:
+                reward = 2 * delta_unrealized
+            elif delta_unrealized < 0:
+                reward = 5 * delta_unrealized
+            else:
+                reward = 0.0
+        else:
+            reward = delta_unrealized
 
         if self.log_enabled:
             self.trade_log.append(
@@ -111,10 +128,13 @@ class CryptoEnv(gym.Env):
             )
 
         self.current_step += 1
-        obs = np.array(
+        window = np.array(
             self.data[self.current_step - self.window_size : self.current_step],
             dtype=np.float32,
         )
+        position_feat = np.full((self.window_size, 1), self.position, dtype=np.float32)
+        pnl_feat = np.full((self.window_size, 1), self.unrealized_profit, dtype=np.float32)
+        obs = np.hstack((window, position_feat, pnl_feat))
         done = self.current_step >= len(self.data)
         info = {"position": self.position, "unrealized_profit": self.unrealized_profit}
         return obs, reward, done, info

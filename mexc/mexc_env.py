@@ -12,7 +12,16 @@ class MexcEnv(gym.Env):
 
     metadata = {"render.modes": ["human"]}
 
-    def __init__(self, symbol: str = "BTCUSDT", window_size: int = 60, max_steps: int = 1000, data=None, log_enabled: bool = False, config=None):
+    def __init__(
+        self,
+        symbol: str = "BTCUSDT",
+        window_size: int = 60,
+        max_steps: int = 1000,
+        data=None,
+        log_enabled: bool = False,
+        config=None,
+        strategy: str = "macd_atr_stochrsi",
+    ):
         super().__init__()
         self.symbol = symbol
         self.window_size = window_size
@@ -22,11 +31,16 @@ class MexcEnv(gym.Env):
         self.trade_log = []
 
         self.config = config or {}
+        self.strategy = strategy
+
+        self.base_columns = ["open", "high", "low", "close", "volume"]
+        self.strategy_columns = self._strategy_columns()
+        self.feature_columns = self.base_columns + self.strategy_columns
 
         self.observation_space = spaces.Box(
             low=-np.inf,
             high=np.inf,
-            shape=(self.window_size, 10),
+            shape=(self.window_size, len(self.feature_columns)),
             dtype=np.float32,
         )
         self.action_space = spaces.Discrete(3)
@@ -36,47 +50,51 @@ class MexcEnv(gym.Env):
         self.entry_price = None
         self.unrealized_profit = None
 
+        self.feature_indices = {col: idx for idx, col in enumerate(self.feature_columns)}
+
+    def _strategy_columns(self) -> list:
+        if self.strategy == "ma_rsi":
+            return ["rsi", "ma"]
+        if self.strategy == "bollinger_bands":
+            return ["bb_lower", "bb_middle", "bb_upper"]
+        # default macd_atr_stochrsi
+        return ["macd", "macd_signal", "macd_hist", "atr", "stochrsi"]
+
     def _generate_data(self):
         limit = self.max_steps + self.window_size + 50  # Puffer für Indikatoren
         raw_data = fetch_klines(symbol=self.symbol, limit=limit, interval="1m")
-        
-        # Umwandeln in DataFrame für TA-Berechnungen
-        df = pd.DataFrame(raw_data, columns=["open", "high", "low", "close", "volume"])
-        df[["open", "high", "low", "close", "volume"]] = df[["open", "high", "low", "close", "volume"]].astype(float)
 
-        # pandas_ta.macd gibt ein DataFrame mit drei Spalten zurück. Eine
-        # direkte Zuweisung wie ``df["macd"], df["macd_signal"], ... = ta.macd``
-        # würde jedoch nur die Spaltennamen zuweisen. Wir extrahieren deshalb
-        # explizit die Werte.
-        macd = ta.macd(df["close"])
-        if isinstance(macd, pd.DataFrame):
-            df["macd"] = macd.iloc[:, 0]
-            df["macd_signal"] = macd.iloc[:, 1]
-            df["macd_hist"] = macd.iloc[:, 2]
+        df = pd.DataFrame(raw_data, columns=self.base_columns)
+        df[self.base_columns] = df[self.base_columns].astype(float)
+
+        if self.strategy == "ma_rsi":
+            df["rsi"] = ta.rsi(df["close"], length=14)
+            df["ma"] = ta.sma(df["close"], length=20)
+        elif self.strategy == "bollinger_bands":
+            bb = ta.bbands(df["close"])
+            if isinstance(bb, pd.DataFrame):
+                df["bb_lower"] = bb.iloc[:, 0]
+                df["bb_middle"] = bb.iloc[:, 1]
+                df["bb_upper"] = bb.iloc[:, 2]
         else:
-            df["macd"] = macd
-            df["macd_signal"] = np.nan
-            df["macd_hist"] = np.nan
-        df["atr"] = ta.atr(df["high"], df["low"], df["close"])
-        # pandas_ta.stochrsi liefert zwei Spalten (K und D). Wir verwenden die
-        # K-Linie und vermeiden damit einen mehrspaltigen DataFrame beim
-        # Zuweisen.
-        stochrsi = ta.stochrsi(df["close"])
-        if isinstance(stochrsi, pd.DataFrame):
-            df["stochrsi"] = stochrsi.iloc[:, 0]
-        else:
-            df["stochrsi"] = stochrsi
+            macd = ta.macd(df["close"])
+            if isinstance(macd, pd.DataFrame):
+                df["macd"] = macd.iloc[:, 0]
+                df["macd_signal"] = macd.iloc[:, 1]
+                df["macd_hist"] = macd.iloc[:, 2]
+            else:
+                df["macd"] = macd
+                df["macd_signal"] = np.nan
+                df["macd_hist"] = np.nan
+            df["atr"] = ta.atr(df["high"], df["low"], df["close"])
+            stochrsi = ta.stochrsi(df["close"])
+            if isinstance(stochrsi, pd.DataFrame):
+                df["stochrsi"] = stochrsi.iloc[:, 0]
+            else:
+                df["stochrsi"] = stochrsi
 
         df = df.dropna().reset_index(drop=True)
-
-        # Wir behalten nur relevante Spalten und konvertieren zu np.array
-        result = df[[
-            "open", "high", "low", "close", "volume",
-            "macd", "macd_signal", "macd_hist",
-            "atr", "stochrsi"
-        ]].dropna().values
-
-        # Kürzen, damit Länge stimmt (falls Dropna etwas abschneidet)
+        result = df[self.feature_columns].dropna().values
         return result[-(self.max_steps + self.window_size):]
 
     def reset(self):
@@ -106,9 +124,9 @@ class MexcEnv(gym.Env):
             return obs, 0.0, True, {}
 
         candle = self.data[self.current_step]
-        price = candle[3]
-        rsi = candle[5]
-        ma = candle[6]
+        price = candle[self.feature_indices["close"]]
+        rsi = candle[self.feature_indices["rsi"]] if "rsi" in self.feature_indices else None
+        ma = candle[self.feature_indices["ma"]] if "ma" in self.feature_indices else None
 
         reward = 0.0
         done = False
@@ -130,17 +148,18 @@ class MexcEnv(gym.Env):
                 self.position = -1
                 self.entry_price = price
 
-        # ==== Optional: RSI/MA Bonus (nur bei Einstieg) ====
-        if self.position == 1 and action == 1:
-            if rsi < 30:
-                reward += 0.001
-            if price > ma:
-                reward += 0.001
-        elif self.position == -1 and action == 2:
-            if rsi > 70:
-                reward += 0.001
-            if price < ma:
-                reward += 0.001
+        # ==== Optional: Indicator Bonus (nur bei Einstieg) ====
+        if rsi is not None and ma is not None:
+            if self.position == 1 and action == 1:
+                if rsi < 30:
+                    reward += 0.001
+                if price > ma:
+                    reward += 0.001
+            elif self.position == -1 and action == 2:
+                if rsi > 70:
+                    reward += 0.001
+                if price < ma:
+                    reward += 0.001
 
         # ==== PNL-Anzeige ====
         if self.position == 1:
@@ -173,8 +192,11 @@ class MexcEnv(gym.Env):
         info = {"position": self.position, "unrealized_profit": self.unrealized_profit}
 
         if self.current_step % 100 == 0:
-            print(f"Step {self.current_step} | Reward: {reward:.4f} | Action: {action} | Price: {price:.4f} | PnL: {realized_pnl:.4f}")
-            print(f"RSI: {rsi:.2f} | MA: {ma:.2f} | Close: {price:.5f}")
+            print(
+                f"Step {self.current_step} | Reward: {reward:.4f} | Action: {action} | Price: {price:.4f} | PnL: {realized_pnl:.4f}"
+            )
+            if rsi is not None and ma is not None:
+                print(f"RSI: {rsi:.2f} | MA: {ma:.2f} | Close: {price:.5f}")
 
         return obs, reward, done, info
 
@@ -235,9 +257,13 @@ class MexcEnv(gym.Env):
 
         # RSI & MA rekonstruieren aus Zeitpunkten
         analysis_data = self.data[[entry["step"] for entry in self.trade_log]]
-        df["rsi"] = analysis_data[:, 5]
-        df["ma"] = analysis_data[:, 6]
-        df["close"] = analysis_data[:, 3]
+        df["close"] = analysis_data[:, self.feature_indices["close"]]
+        if "rsi" in self.feature_indices and "ma" in self.feature_indices:
+            df["rsi"] = analysis_data[:, self.feature_indices["rsi"]]
+            df["ma"] = analysis_data[:, self.feature_indices["ma"]]
+        else:
+            print("⚠️ Analyse nur für RSI/MA Strategie verfügbar")
+            return
 
         # Heatmap: RSI vs. Aktion
         plt.figure(figsize=(10, 6))

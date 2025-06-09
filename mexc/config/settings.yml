@@ -1,6 +1,16 @@
 symbols:
   - ICPUSDC
 
+strategies:
+  ma_rsi:
+    indicators: [rsi, ma]
+  macd_atr_stochrsi:
+    indicators: [macd, macd_signal, macd_hist, atr, stochrsi]
+  bollinger_bands:
+    indicators: [bb_lower, bb_middle, bb_upper]
+
+default_strategy: macd_atr_stochrsi
+
 train:
   window_size: 60
   total_timesteps: 100000

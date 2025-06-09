@@ -1,5 +1,6 @@
 import os
 import yaml
+import argparse
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import BaseCallback
 from .mexc_env import MexcEnv
@@ -29,10 +30,19 @@ class EarlyStopCallback(BaseCallback):
 
 
 def main():
+    parser = argparse.ArgumentParser()
     base_path = os.path.dirname(__file__)
     settings_path = os.path.join(base_path, "config", "settings.yml")
     with open(settings_path, "r") as f:
         settings = yaml.safe_load(f)
+
+    parser.add_argument(
+        "--strategy",
+        default=settings.get("default_strategy", "macd_atr_stochrsi"),
+        help="Name der Trading-Strategie",
+    )
+    args = parser.parse_args()
+    strategy = args.strategy
 
     window_size = settings.get("train", {}).get("window_size", 60)
     timesteps = settings.get("train", {}).get("total_timesteps", 100_000)
@@ -56,7 +66,8 @@ def main():
             symbol=symbol,
             window_size=window_size,
             log_enabled=True,
-            config=config  # <== NEU: Konfig an die Umgebung übergeben
+            config=config,
+            strategy=strategy,
         )
 
         model = PPO("MlpPolicy", env, verbose=1, device=device)

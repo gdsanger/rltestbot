@@ -3,6 +3,7 @@ import time
 import csv
 from datetime import datetime
 import yaml
+import argparse
 
 from stable_baselines3 import PPO
 from .mexc_precision import adjust_quantity
@@ -38,10 +39,19 @@ def log_trade(path: str, symbol: str, action: int, price: float, position: int, 
 
 
 def main():
+    parser = argparse.ArgumentParser()
     base_dir = os.path.dirname(__file__)
     settings_path = os.path.join(base_dir, "config", "settings.yml")
     with open(settings_path, "r") as f:
         settings = yaml.safe_load(f)
+
+    parser.add_argument(
+        "--strategy",
+        default=settings.get("default_strategy", "macd_atr_stochrsi"),
+        help="Name der Trading-Strategie",
+    )
+    args = parser.parse_args()
+    strategy = args.strategy
 
     window_size = settings.get("train", {}).get("window_size", 60)
     agents_dir = os.path.join(base_dir, "agents")
@@ -56,7 +66,12 @@ def main():
     for symbol in settings.get("symbols", []):
         model_path = os.path.join(agents_dir, f"ppo_{symbol.lower()}")
         models[symbol] = PPO.load(model_path)       
-        env = MexcEnv(symbol=symbol, window_size=window_size, log_enabled=False)
+        env = MexcEnv(
+            symbol=symbol,
+            window_size=window_size,
+            log_enabled=False,
+            strategy=strategy,
+        )
         obs = env.reset()
         envs[symbol] = env
         observations[symbol] = obs
@@ -113,7 +128,13 @@ def main():
 
             if done:
                 new_data = fetch_recent_candles(symbol=symbol, limit=window_size, return_df=False)
-                envs[symbol] = MexcEnv(symbol=symbol, window_size=window_size, data=new_data, log_enabled=False)
+                envs[symbol] = MexcEnv(
+                    symbol=symbol,
+                    window_size=window_size,
+                    data=new_data,
+                    log_enabled=False,
+                    strategy=strategy,
+                )
                 observations[symbol] = envs[symbol].reset()
 
         time.sleep(60)

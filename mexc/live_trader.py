@@ -75,7 +75,7 @@ def main():
             action, _ = model.predict(obs, deterministic=True)
             price = envs[symbol].data[envs[symbol].current_step - 1][3]
             quantity_raw = invest_amount / price
-            print(f"quantity_raw: {quantity_raw}")           
+            print(f"quantity_raw: {quantity_raw}")
             quantity = adjust_quantity(symbol, quantity_raw)
             print(f"quantity: {quantity}")
             # Order ausführen
@@ -87,11 +87,18 @@ def main():
                     print(f"[{symbol}] ❌ Fehler bei BUY: {e}")
 
             elif action == 2:  # Sell
-                try:
-                    place_order(symbol=symbol, side="SELL", quantity=quantity, price=price)
-                    print(f"[{symbol}] ✅ SELL Order ausgeführt")
-                except Exception as e:
-                    print(f"[{symbol}] ❌ Fehler bei SELL: {e}")
+                base_asset = symbol.replace("USDC", "").replace("USDT", "")
+                asset_balance = get_account_balance(base_asset)
+                print(f"[{symbol}] Kontostand {base_asset}: {asset_balance}")
+                if asset_balance > 0:
+                    sell_quantity = adjust_quantity(symbol, asset_balance)
+                    try:
+                        place_order(symbol=symbol, side="SELL", quantity=sell_quantity, price=price)
+                        print(f"[{symbol}] ✅ SELL Order ausgeführt")
+                    except Exception as e:
+                        print(f"[{symbol}] ❌ Fehler bei SELL: {e}")
+                else:
+                    print(f"[{symbol}] ⚠️ Kein Bestand zum Verkaufen")
             obs, _, done, info = envs[symbol].step(action)
             observations[symbol] = obs
 

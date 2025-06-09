@@ -4,3 +4,4 @@ symbols:
 train:
   window_size: 60
   total_timesteps: 100000
+  device: cpu

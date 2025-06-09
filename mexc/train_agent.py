@@ -36,7 +36,7 @@ def main():
 
     window_size = settings.get("train", {}).get("window_size", 60)
     timesteps = settings.get("train", {}).get("total_timesteps", 100_000)
-    device = settings.get("train", {}).get("device", "auto")
+    device = settings.get("train", {}).get("device", "cpu")
 
     agents_dir = os.path.join(base_path, "agents")
     data_dir = os.path.join(base_path, "data")

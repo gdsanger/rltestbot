@@ -62,8 +62,6 @@ def main():
         observations[symbol] = obs
 
     invest_ratio = settings.get("live_trading", {}).get("invest_ratio", 0.1)
-    take_profit = settings.get("live_trading", {}).get("take_profit")
-    stop_loss = settings.get("live_trading", {}).get("stop_loss")
 
     print("Lokale Zeit:", time.time())
     print("🚀 Starte Live-Handel (live) auf MEXC..." )

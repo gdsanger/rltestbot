@@ -1,7 +1,6 @@
 symbols:
   - DOGEEUR
   - PEPEEUR
-  - WIFEUR
 
 strategies:
   ma_rsi:
